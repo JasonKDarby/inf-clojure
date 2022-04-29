@@ -147,7 +147,7 @@
                               (clojure.core/meta
                                (clojure.core/resolve
                                 (clojure.core/read-string \"%s\"))))
-                            (catch #?(:clj Throwable :cljr Exception) e nil))")
+                            (catch Throwable t nil))")
                 (apropos . "(doseq [var (sort (clojure.repl/apropos \"%s\"))] (println (str var)))")
                 (ns-vars . "(clojure.repl/dir %s)")
                 (set-ns . "(clojure.core/in-ns '%s)")
