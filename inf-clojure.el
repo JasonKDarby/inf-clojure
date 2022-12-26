@@ -4,9 +4,10 @@
 
 ;; Authors: Bozhidar Batsov <bozhidar@batsov.dev>
 ;;       Olin Shivers <shivers@cs.cmu.edu>
+;; Maintainer: Bozhidar Batsov <bozhidar@batsov.dev>
 ;; URL: http://github.com/clojure-emacs/inf-clojure
-;; Keywords: processes, clojure
-;; Version: 3.2.0-snapshot
+;; Keywords: processes, comint, clojure
+;; Version: 3.2.1
 ;; Package-Requires: ((emacs "25.1") (clojure-mode "5.11"))
 
 ;; This file is not part of GNU Emacs.
@@ -35,7 +36,7 @@
 ;; REPL.
 ;;
 ;; `inf-clojure` provides a set of essential features for interactive
-;; Clojure(Script) development:
+;; Clojure/ClojureScript/ClojureCLR development:
 ;;
 ;; * REPL
 ;; * Interactive code evaluation
@@ -74,6 +75,7 @@
                                     (boot . "boot repl")
                                     (clojure . "clojure")
                                     (cljs . "clojure -m cljs.main -r")
+                                    (lein-clr . "lein clr repl")
                                     (planck . "planck -d")
                                     (babashka . "bb")
                                     (lumo . "lumo -d")
@@ -152,7 +154,22 @@
                 (ns-vars . "(clojure.repl/dir %s)")
                 (set-ns . "(clojure.core/in-ns '%s)")
                 (macroexpand . "(clojure.core/macroexpand '%s)")
-                (macroexpand-1 . "(clojure.core/macroexpand-1 '%s)")))))
+                (macroexpand-1 . "(clojure.core/macroexpand-1 '%s)")))
+    (lein-clr . ((load . "(clojure.core/load-file \"%s\")")
+                 (doc . "(clojure.repl/doc %s)")
+                 (source . "(clojure.repl/source %s)")
+                 (arglists .
+                           "(try
+                             (:arglists
+                              (clojure.core/meta
+                               (clojure.core/resolve
+                                (clojure.core/read-string \"%s\"))))
+                             (catch Exception e nil))")
+                 (apropos . "(doseq [var (sort (clojure.repl/apropos \"%s\"))] (println (str var)))")
+                 (ns-vars . "(clojure.repl/dir %s)")
+                 (set-ns . "(clojure.core/in-ns '%s)")
+                 (macroexpand . "(clojure.core/macroexpand '%s)")
+                 (macroexpand-1 . "(clojure.core/macroexpand-1 '%s)")))))
 
 (defvar-local inf-clojure-repl-type nil
   "Symbol to define your REPL type.
@@ -212,8 +229,8 @@ If no-error is truthy don't error if feature is not present."
 
 (defun inf-clojure--update-feature (repl-type feature form)
   "Return a copy of the datastructure containing the repl features.
-Given a REPL-TYPE ('clojure, 'lumo, ...) and a FEATURE ('doc,
-'apropos, ...) and a FORM this will return a new datastructure
+Given a REPL-TYPE (`clojure', `lumo', ...) and a FEATURE (`doc',
+`apropos', ...) and a FORM this will return a new datastructure
 that can be set as `inf-clojure-repl-features'."
   (let ((original (alist-get repl-type inf-clojure-repl-features)))
     (if original
@@ -225,8 +242,8 @@ that can be set as `inf-clojure-repl-features'."
 
 (defun inf-clojure-update-feature (repl-type feature form)
   "Mutate the repl features to the new FORM.
-Given a REPL-TYPE ('clojure, 'lumo, ...) and a FEATURE ('doc,
-'apropos, ...) and a FORM this will set
+Given a REPL-TYPE (`clojure', `lumo', ...) and a FEATURE (`doc',
+`apropos', ...) and a FORM this will set
 `inf-clojure-repl-features' with these new values."
   (setq inf-clojure-repl-features (inf-clojure--update-feature repl-type feature form)))
 
@@ -293,8 +310,9 @@ See http://blog.jorgenschaefer.de/2014/05/race-conditions-in-emacs-process-filte
   :link '(emacs-commentary-link :tag "Commentary" "inf-clojure"))
 
 (defconst inf-clojure-version
-  (eval-when-compile
-    (lm-version (or load-file-name buffer-file-name)))
+  (or (if (fboundp 'package-get-version)
+          (package-get-version))
+      "3.2.1")
   "The current version of `inf-clojure'.")
 
 (defcustom inf-clojure-prompt-read-only t
@@ -321,7 +339,8 @@ Either \"no process\" or \"buffer-name(repl-type)\""
     "no process"))
 
 (defvar inf-clojure-mode-map
-  (let ((map (copy-keymap comint-mode-map)))
+  (let ((map (make-sparse-keymap)))
+    (set-keymap-parent map comint-mode-map)
     (define-key map (kbd "C-x C-e") #'inf-clojure-eval-last-sexp)
     (define-key map (kbd "C-c C-l") #'inf-clojure-load-file)
     (define-key map (kbd "C-c C-a") #'inf-clojure-show-arglists)
@@ -351,7 +370,7 @@ Either \"no process\" or \"buffer-name(repl-type)\""
     map))
 
 (defvar inf-clojure-insert-commands-map
-  (let ((map (define-prefix-command 'inf-clojure-insert-commands-map)))
+  (let ((map (make-sparse-keymap)))
     (define-key map (kbd "d") #'inf-clojure-insert-defun)
     (define-key map (kbd "C-d") #'inf-clojure-insert-defun)
     (define-key map (kbd "e") #'inf-clojure-insert-last-sexp)
@@ -368,7 +387,7 @@ Either \"no process\" or \"buffer-name(repl-type)\""
     (define-key map (kbd "C-c C-r") #'inf-clojure-eval-region)
     (define-key map (kbd "C-c M-r") #'inf-clojure-reload)
     (define-key map (kbd "C-c C-n") #'inf-clojure-eval-form-and-next)
-    (define-key map (kbd "C-c C-j") 'inf-clojure-insert-commands-map)
+    (define-key map (kbd "C-c C-j") inf-clojure-insert-commands-map)
     (define-key map (kbd "C-c C-z") #'inf-clojure-switch-to-repl)
     (define-key map (kbd "C-c C-i") #'inf-clojure-show-ns-vars)
     (define-key map (kbd "C-c C-S-a") #'inf-clojure-apropos)
@@ -429,7 +448,7 @@ displaying function signatures in the modeline, but can also
 cause multiple prompts to appear in the REPL and mess with *1,
 *2, etc."
   :type 'boolean
-  :safe 'booleanp
+  :safe #'booleanp
   :package-version '(inf-clojure . "3.2.0"))
 
 ;;;###autoload
@@ -917,16 +936,21 @@ Prefix argument AND-GO means switch to the Clojure buffer afterwards."
   "Insert FORM into process and evaluate.
 Indent FORM.  FORM is expected to have been trimmed."
   (let ((clojure-process (inf-clojure-proc)))
-    (with-current-buffer (process-buffer clojure-process)
-      (comint-goto-process-mark)
-      (let ((beginning (point)))
-        (insert (format "%s" form))
-        (let ((end (point)))
-          (goto-char beginning)
-          (indent-sexp end)
-          ;; font-lock the inserted code
-          (font-lock-ensure beginning end)))
-      (comint-send-input t t))))
+    ;; ensure the repl buffer scrolls. See similar fix in CIDER:
+    ;; https://github.com/clojure-emacs/cider/pull/2590
+    (with-selected-window (or (get-buffer-window inf-clojure-buffer)
+                              (selected-window))
+      (with-current-buffer (process-buffer clojure-process)
+        (comint-goto-process-mark)
+        (let ((beginning (point)))
+          (insert form)
+          (let ((end (point)))
+            (goto-char beginning)
+            (indent-sexp end)
+            ;; font-lock the inserted code
+            (font-lock-ensure beginning end)
+            (goto-char end)))
+        (comint-send-input t t)))))
 
 (defun inf-clojure-insert-defun ()
   "Send current defun to process."
@@ -940,10 +964,10 @@ Indent FORM.  FORM is expected to have been trimmed."
    (buffer-substring-no-properties (save-excursion (backward-sexp) (point))
                                    (point))))
 
-;;; Now that inf-clojure-eval-/defun/region takes an optional prefix arg,
-;;; these commands are redundant. But they are kept around for the user
-;;; to bind if he wishes, for backwards functionality, and because it's
-;;; easier to type C-c e than C-u C-c C-e.
+;; Now that inf-clojure-eval-/defun/region takes an optional prefix arg,
+;; these commands are redundant. But they are kept around for the user
+;; to bind if he wishes, for backwards functionality, and because it's
+;; easier to type C-c e than C-u C-c C-e.
 
 (defun inf-clojure-eval-region-and-go (start end)
   "Send the current region to the inferior Clojure, and switch to its buffer.
@@ -1031,7 +1055,7 @@ display."
           (if (zerop (length ans)) default ans))))
 
 
-;;; Adapted from function-called-at-point in help.el.
+;; Adapted from function-called-at-point in help.el.
 (defun inf-clojure-fn-called-at-pt ()
   "Return the name of the function called in the current call.
 The value is nil if it can't find one."

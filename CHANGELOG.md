@@ -1,11 +1,28 @@
 # Changelog
 
 ## master (unreleased)
+* [#202](https://github.com/clojure-emacs/inf-clojure/issues/202): Add ClojureCLR support.
+* [#204](https://github.com/clojure-emacs/inf-clojure/issues/204): Scroll repl buffer on insert commands
+
+
+## 3.2.1 (2022-07-22)
+
+### Bugs fixed
+
+* Address some small issues with NonGNU ELPA (e.g. missing maintainer metadata).
+
+## 3.2.0 (2022-07-15)
 
 ### New features
 
-* [#168](https://github.com/clojure-emacs/inf-clojure/pull/197): Helper function `inf-clojure-switch-to-recent-buffer` to select the last buffer an inf-clojure process buffer was swapped to from.
-* [#187](https://github.com/clojure-emacs/inf-clojure/pull/197): Defcustom `inf-clojure-enable-eldoc` to disable eldoc interaction.
+* [#168](https://github.com/clojure-emacs/inf-clojure/pull/197): New helper function `inf-clojure-switch-to-recent-buffer` to select the last buffer an inf-clojure process buffer was swapped to from.
+* [#187](https://github.com/clojure-emacs/inf-clojure/pull/197): New defcustom `inf-clojure-enable-eldoc` to disable eldoc interaction.
+
+### Bugs fixed
+
+* [#185](https://github.com/clojure-emacs/inf-clojure/issues/185): Improve cmd string splitting.
+* [#193](https://github.com/clojure-emacs/inf-clojure/pull/193): Set syntax table in REPL buffer.
+* Fix `inf-clojure-display-version` (it wasn't extracting properly the package version).
 
 ## 3.1.0 (2021-07-23)
 
@@ -17,7 +34,6 @@
 
 ### Bugs fixed
 
-* [#193](https://github.com/clojure-emacs/inf-clojure/pull/193): Set syntax table in REPL buffer.
 * [#152](https://github.com/clojure-emacs/inf-clojure/issues/152): Sanitize should only remove whitespace at the end of a command.
 * [#188](https://github.com/clojure-emacs/inf-clojure/pull/188): Handle newlines between forms for `inf-clojure-eval-buffer`.
 * [#189](https://github.com/clojure-emacs/inf-clojure/pull/189): Font-lock code inserted in the REPL from a source buffer.
