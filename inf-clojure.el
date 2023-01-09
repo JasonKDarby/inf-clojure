@@ -169,7 +169,15 @@
                  (ns-vars . "(clojure.repl/dir %s)")
                  (set-ns . "(clojure.core/in-ns '%s)")
                  (macroexpand . "(clojure.core/macroexpand '%s)")
-                 (macroexpand-1 . "(clojure.core/macroexpand-1 '%s)")))))
+                 (macroexpand-1 . "(clojure.core/macroexpand-1 '%s)")))
+    (combined-clj-cljs . ((doc . "(-> \"%s\" #?(:default clojure.repl/doc :cljs cljs.repl/doc))")
+                          (source . "(-> \"%s\" #?(:clj clojure.repl/source :cljs cljs.repl/source))")
+                          (arglists . "(try (-> (symbol \"%s\") #?(:clj (->> str clojure.core/read-string clojure.core/resolve clojure.core/meta :arglists) :cljs (->> cljs.core/resolve cljs.core/meta :arglists))) #?(:clj (catch Throwable _ nil) :cljs (catch :default _ nil)))")
+                          (apropos  . "(let [inf-clojure-dummy-val \"%s\"] #?(:clj (doseq [var (sort (clojure.repl/apropos inf-clojure-dummy-val))] (println (str var))) :cljs (cljs.repl/apropos inf-clojure-dummy-val))")
+                          (ns-vars . "(-> %s #?(:clj clojure.repl/dir :cljs cljs.repl/dir))")
+                          (set-ns . "(in-ns '%s)")
+                          (macroexpand . "(-> '%s #?(:clj clojure.core/macroexpand :cljs cljs.core/macroexpand))")
+                          (macroexpand-1 . "(-> '%s #?(:clj clojure.core/macroexpand-1 :cljs cljs.core/macroexpand-1))")))))
 
 (defvar-local inf-clojure-repl-type nil
   "Symbol to define your REPL type.
